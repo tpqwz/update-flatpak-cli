@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Supersede in-flight runs for the same ref, but never cancel a push to main.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Nim ${{ matrix.nim }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        nim: ["2.0.14", "2.2.4"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nim ${{ matrix.nim }}
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: ${{ matrix.nim }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Type-check
+        run: make check
+
+      # Prefer a fully static binary; fall back to dynamic rather than failing
+      # the build if the runner lacks static libc archives.
+      - name: Build (static, falling back to dynamic)
+        run: |
+          if make; then
+            echo "STATIC_LINK=static" >> "$GITHUB_ENV"
+          else
+            echo "::warning title=Static link failed::Falling back to a dynamically linked build"
+            make dynamic
+            echo "STATIC_LINK=dynamic" >> "$GITHUB_ENV"
+          fi
+
+      - name: Inspect the binary
+        run: |
+          file bin/update-flatpak-cli
+          ldd bin/update-flatpak-cli || echo "(statically linked: no shared library dependencies)"
+
+      - name: Unit tests
+        run: make unit
+
+      - name: End-to-end tests
+        run: make integration
+
+      - name: Smoke-test the CLI contract
+        run: |
+          bin/update-flatpak-cli --version
+          bin/update-flatpak-cli --help > /dev/null
+          set +e
+          bin/update-flatpak-cli --definitely-not-an-option
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+
+      - name: Checksum and upload the binary
+        run: |
+          sha256sum bin/update-flatpak-cli | tee bin/update-flatpak-cli.sha256
+          echo "### Built artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat bin/update-flatpak-cli.sha256 >> "$GITHUB_STEP_SUMMARY"
+          file bin/update-flatpak-cli >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-flatpak-cli-${{ matrix.nim }}-linux-x86_64-${{ env.STATIC_LINK }}
+          path: |
+            bin/update-flatpak-cli
+            bin/update-flatpak-cli.sha256
+          if-no-files-found: error
+          retention-days: 30

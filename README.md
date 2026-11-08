@@ -251,6 +251,27 @@ like `python3 update_flatpak_cli.py`.
   harvested automatically — hence the manual extra-command table.
 * Flatpaks still do not install manpages.
 
+## Continuous integration and releases
+
+Every push to `main` and every pull request runs
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): type-check, build (a
+static binary, falling back to dynamic if the runner lacks static libc
+archives), the unit tests, the end-to-end tests, a smoke test of the CLI
+contract, and then a checksummed upload of the binary as a build artifact — for
+both the oldest and current supported Nim.
+
+Pushing a version tag builds, tests and publishes a release with the static
+binary attached:
+
+```console
+$ git tag -a v1.0.0 -m "v1.0.0"
+$ git push origin v1.0.0
+```
+
+The tests are re-run in that job deliberately: a release binary is the one
+build people download without compiling it themselves, so it is verified
+rather than assumed.
+
 ## Development
 
 ```console

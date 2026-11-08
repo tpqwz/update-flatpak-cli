@@ -1,0 +1,76 @@
+name: Release
+
+# Build the static binary and publish it as a GitHub Release asset whenever a
+# version tag is pushed:
+#
+#   git tag -a v1.0.0 -m "v1.0.0" && git push origin v1.0.0
+#
+# The tests run again here on purpose: a release is the one build that people
+# download without compiling, so it gets verified rather than assumed.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)release"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.2.4"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build static binary
+        run: make
+
+      - name: Verify the binary is self-contained
+        run: |
+          file bin/update-flatpak-cli
+          if ldd bin/update-flatpak-cli 2>&1 | grep -q "not a dynamic executable"; then
+            echo "ok: binary is statically linked"
+          else
+            echo "::warning title=Not static::Release binary is dynamically linked"
+          fi
+
+      - name: Unit tests
+        run: make unit
+
+      - name: End-to-end tests
+        run: make integration
+
+      - name: Stage the release asset
+        run: |
+          asset=update-flatpak-cli-linux-x86_64
+          cp bin/update-flatpak-cli "$asset"
+          strip "$asset"
+          sha256sum "$asset" > "$asset.sha256"
+          cat "$asset.sha256"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "update-flatpak-cli ${TAG}" \
+            --generate-notes \
+            "update-flatpak-cli-linux-x86_64#linux-x86_64 static binary" \
+            "update-flatpak-cli-linux-x86_64.sha256" \
+          || gh release upload "$TAG" \
+            "update-flatpak-cli-linux-x86_64" \
+            "update-flatpak-cli-linux-x86_64.sha256" \
+            --clobber
