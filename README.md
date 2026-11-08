@@ -288,5 +288,8 @@ docs/CONFIGURATION.md        how to extend the mapping tables
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE) — it credits Stephan Sokolow's original gist, from
-which the heuristics and the generated launcher are derived.
+MIT — see [LICENSE](LICENSE).
+
+This is a reimplementation of Stephan Sokolow's original gist, which is also
+MIT-licensed. [CREDITS.md](CREDITS.md) lists precisely which parts of this
+project derive from that work.

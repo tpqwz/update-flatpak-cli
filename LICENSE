@@ -2,12 +2,6 @@ MIT License
 
 Copyright (c) 2026 the update-flatpak-cli contributors
 
-This program is a compiled reimplementation of the `update_flatpak_cli.py`
-gist by Stephan Sokolow (deitarion/SSokolow), whose original work is
-copyright (c) 2021-2022 Stephan Sokolow and is distributed under the MIT
-licence. The heuristics, the generated launcher's behaviour and the built-in
-remapping tables are derived from that original.
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
