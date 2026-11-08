@@ -71,7 +71,11 @@ jobs:
 
       - name: Checksum and upload the binary
         run: |
-          sha256sum bin/update-flatpak-cli | tee bin/update-flatpak-cli.sha256
+          # Generate the checksum from inside bin/ so it records the bare file
+          # name; an artifact download flattens the directory, and a path like
+          # bin/update-flatpak-cli would make `sha256sum -c` fail there.
+          ( cd bin && sha256sum update-flatpak-cli > update-flatpak-cli.sha256 )
+          cat bin/update-flatpak-cli.sha256
           echo "### Built artifact" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cat bin/update-flatpak-cli.sha256 >> "$GITHUB_STEP_SUMMARY"
