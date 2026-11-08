@@ -1,0 +1,12 @@
+# Build artefacts
+/bin/
+nimcache/
+*.o
+*.new
+
+# Editor / OS noise
+*.swp
+*~
+.DS_Store
+.vscode/
+.idea/
